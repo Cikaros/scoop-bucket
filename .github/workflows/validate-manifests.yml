@@ -1,0 +1,60 @@
+name: Validate Scoop Manifests  # 校验所有 Scoop manifest
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository  # 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Scoop  # 安装 Scoop 本身
+        shell: pwsh
+        run: |
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+
+      - name: Add this bucket  # 把当前仓库作为 bucket 添加进去
+        shell: pwsh
+        run: |
+          scoop bucket add mybucket "${{ github.workspace }}"
+
+      - name: Validate each manifest JSON  # 逐个校验 bucket 目录下的 JSON manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bucketDir = Join-Path $env:GITHUB_WORKSPACE 'bucket'
+          $manifests = Get-ChildItem -Path $bucketDir -Filter *.json
+          if (-not $manifests) {
+            Write-Error "在 $bucketDir 没找到任何 manifest"
+            exit 1
+          }
+          foreach ($m in $manifests) {
+            $name = $m.BaseName
+            Write-Host "校验中: $name"
+            try {
+              # 'scoop cat' 会解析并打印 manifest 内容，JSON 语法或必填字段缺失都会报错
+              $null = scoop cat $name 2>&1
+              if ($LASTEXITCODE -ne 0) {
+                Write-Error "校验失败: $name"
+              }
+              Write-Host "  -> 通过" -ForegroundColor Green
+            } catch {
+              Write-Error "校验失败: $name : $_"
+            }
+          }
+          Write-Host ""
+          Write-Host "所有 manifest 校验通过！" -ForegroundColor Green
+
+      - name: Show bucket info  # 显示 bucket 列表 + 可搜索的包名
+        shell: pwsh
+        run: |
+          scoop bucket list
+          scoop search ""

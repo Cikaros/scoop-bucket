@@ -1,0 +1,85 @@
+{
+    "version": "5.6.2",
+    "description": "Qt 5.6.2 框架二进制包，MSVC2015 64-bit 编译。前置依赖：必须先安装 VS2015 + C++ 工作负载。",
+    "homepage": "https://download.qt.io/archive/qt/5.6/5.6.2/",
+    "license": {
+        "identifier": "LGPL-3.0-or-later",
+        "url": "https://www.gnu.org/licenses/lgpl-3.0.html"
+    },
+    "notes": [
+        "【版本锁定说明】",
+        "本 manifest 已锁定到 5.6.2，无 autoupdate、无 checkver。",
+        "即使本仓库后续推送其他 Qt 版本 manifest（例如 qt-5.9.9-msvc2015-64、qt-5.12.10-msvc2015-64 等），",
+        "本 manifest 文件不会被改动，始终可以安装到 Qt 5.6.2。这是参照官方 versions 仓库的版本锁定模式。",
+        "",
+        "【前置依赖】",
+        "必须先安装 'cikaros/vs2015-cpp'：",
+        "  scoop install cikaros/vs2015-cpp",
+        "",
+        "【安装机制说明】",
+        "Qt 5.6.2 安装器基于 Qt Installer Framework（不是 Inno Setup 也不是 NSIS），",
+        "有自己的一套静默模式。本 manifest 在 pre_install 阶段自动生成一个 installscript.qs 脚本，",
+        "脚本功能：",
+        "  - 取消选中所有可选组件",
+        "  - 仅选中 'qt.562.win64_msvc2015_64' 组件",
+        "  - 自动点击所有向导页面的 Next 按钮",
+        "如果安装时仍提示 Qt 账号登录，请登录（免费）。5.6.x 时代的归档安装器很少要求登录。",
+        "",
+        "【替代方案（完全无交互，推荐有 Python 环境时使用）】",
+        "  pip install aqtinstall",
+        "  python -m aqt install-qt windows desktop 5.6.2 win64_msvc2015_64 --outputdir C:\\Qt\\5.6.2",
+        "",
+        "【URL 提示】",
+        "download.qt.io 在中国大陆访问较慢。建议把安装器镜像到你自己的 CDN 或 GitHub Release，",
+        "然后修改下方 'url' 字段。",
+        "",
+        "【Hash 提示】",
+        "本 manifest 故意省略 hash 字段。计算方法：",
+        "  Get-FileHash qt-opensource-windows-x86-msvc2015_64-5.6.2.exe -Algorithm SHA256",
+        "或者安装时跳过校验：",
+        "  scoop install cikaros/qt-5.6.2-msvc2015-64 --skip"
+    ],
+    "url": "https://download.qt.io/archive/qt/5.6/5.6.2/qt-opensource-windows-x86-msvc2015_64-5.6.2.exe",
+    "pre_install": [
+        "$qs = @'",
+        "function Controller() {",
+        "    installer.autoRejectMessageBoxes = true;",
+        "    installer.setMessageBoxAutomaticAnswer('OverwriteTargetDirectory', 'Yes');",
+        "    installer.setMessageBoxAutomaticAnswer('stopProcessesDuringUninstallation', 'OK');",
+        "    installer.setMessageBoxAutomaticAnswer('installationErrorDuringCancel', 'OK');",
+        "    var page = gui.pageWidgetByObjectName('ComponentSelection');",
+        "    page.deselectAll();",
+        "    page.selectComponent('qt.562.win64_msvc2015_64');",
+        "    installer.installationFinished = function() {",
+        "        gui.clickButton(buttons.NextButton);",
+        "    };",
+        "    gui.currentPageChanged = function(pageId) {",
+        "        gui.clickButton(buttons.NextButton);",
+        "    };",
+        "}",
+        "'@",
+        "$qs | Set-Content -Path \"$dir\\installscript.qs\" -Encoding UTF8"
+    ],
+    "installer": {
+        "args": [
+            "--script",
+            "$dir\\installscript.qs",
+            "--silent",
+            "--no-force-installations"
+        ]
+    },
+    "post_install": [
+        "Remove-Item -Path \"$dir\\installscript.qs\" -Force -ErrorAction SilentlyContinue"
+    ],
+    "env_set": {
+        "QTDIR": "$dir",
+        "QT_PLUGIN_PATH": "$dir\\plugins",
+        "QT_QPA_PLATFORM_PLUGIN_PATH": "$dir\\plugins\\platforms"
+    },
+    "bin": [
+        "bin\\qmake.exe",
+        "bin\\moc.exe",
+        "bin\\rcc.exe",
+        "bin\\uic.exe"
+    ]
+}
