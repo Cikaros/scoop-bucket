@@ -1,0 +1,71 @@
+{
+    "version": "15.9",
+    "description": "VS2017 Community bootstrapper + v140 (VS2015 兼容) C++ 工具集 + Win10 SDK 14393 一体化安装。装出来的 cl.exe 与 VS2015 行为一致，但通过 VS2017 公开 URL 安装。",
+    "homepage": "https://visualstudio.microsoft.com/vs/older-downloads/",
+    "license": {
+        "identifier": "Freeware",
+        "url": "https://visualstudio.microsoft.com/license-terms/"
+    },
+    "notes": [
+        "【版本锁定说明】",
+        "本 manifest 锁定到：VS2017 bootstrapper (15.x latest) + v140 工具集 + Win10 SDK 14393。",
+        "无 autoupdate、无 checkver，是参照官方 versions 仓库的版本锁定模式。",
+        "",
+        "【为什么用 VS2017 bootstrapper 而不是 VS2015】",
+        "微软已下线 VS2015 公开下载 URL（https://download.microsoft.com/.../vs_community_ENU.exe 返回 404）。",
+        "VS2017 bootstrapper URL 仍公开可用：https://aka.ms/vs/15/release/vs_community.exe",
+        "通过 VS2017 安装 v140 组件（即 VS2015 编译器），等价于装 VS2015 + C++ 工作负载。",
+        "",
+        "【v140 是什么】",
+        "v140 = VS2015 编译器（MSVC 14.0.x），与 VS2015 Update 3 自带的 cl.exe 完全一致。",
+        "VS2017 把 v140 作为可选组件提供（Microsoft.VisualStudio.ComponentGroup.VC.Tools.v140），",
+        "安装到与 VS2015 相同的路径：C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\",
+        "",
+        "【已选中的 VS 组件】",
+        "  - Microsoft.VisualStudio.ComponentGroup.VC.Tools.v140 → v140 编译器 + 头 + ATL + MFC",
+        "  - Microsoft.VisualStudio.Component.Windows10SDK.14393 → Win10 SDK 10.0.14393.795",
+        "（Win10 SDK 14393 与独立安装版等价，无需再单独装 cikaros/windows10sdk-14393）",
+        "",
+        "【安装路径】",
+        "VS2017 shell:  C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\",
+        "v140 工具集:   C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\",
+        "Win10 SDK:    C:\\Program Files (x86)\\Windows Kits\\10\\",
+        "通过 'Developer Command Prompt for VS2017' 快捷方式加载构建环境（自动识别 v140）。",
+        "",
+        "【安装时长】",
+        "VS Installer 先下载 bootstrapper (~1.5MB)，再按所选组件下载完整包，预计 15-30 分钟。",
+        "--wait 参数让 scoop 等待 VS Installer 完成（否则会立刻返回 exit 0）。",
+        "",
+        "【Hash 提示】",
+        "本 manifest 故意省略 hash 字段（VS bootstrapper 偶尔会被 MS 静默更新）。",
+        "安装时如遇 hash 校验问题，用 --skip 跳过：",
+        "  scoop install cikaros/vs2017-v140-cpp --skip",
+        "",
+        "【前置条件】",
+        "  - Windows 10 或更高（VS2017 不支持 Win7/8）",
+        "  - 管理员权限（系统级安装）",
+        "  - 至少 8GB 可用磁盘空间"
+    ],
+    "url": "https://aka.ms/vs/15/release/vs_community.exe",
+    "installer": {
+        "args": [
+            "install",
+            "--productId", "Microsoft.VisualStudio.Product.VisualStudioCommunity",
+            "--channelId", "VisualStudio.15.Release",
+            "--add", "Microsoft.VisualStudio.ComponentGroup.VC.Tools.v140",
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.14393",
+            "--quiet",
+            "--norestart",
+            "--wait"
+        ]
+    },
+    "post_install": [
+        "Remove-Item -Path \"$dir\\$fname\" -Force -ErrorAction SilentlyContinue"
+    ],
+    "env_set": {
+        "VS150COMNTOOLS": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\Tools\\",
+        "VS140COMNTOOLS": "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\",
+        "WindowsSdkDir": "C:\\Program Files (x86)\\Windows Kits\\10\\",
+        "WindowsSDKVersion": "10.0.14393.0"
+    }
+}
