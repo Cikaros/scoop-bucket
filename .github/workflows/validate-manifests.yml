@@ -1,48 +1,30 @@
-name: Validate Scoop Manifests  # 校验所有 Scoop manifest 并自动生成 MANIFESTS.md
-
+name: Validate Scoop Manifests
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-
 permissions:
-  contents: write  # 允许 CI 把生成的 MANIFESTS.md 推回仓库
-
+  contents: write
 jobs:
   validate:
     runs-on: windows-latest
     steps:
-      - name: Checkout repository  # 检出仓库
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Install Scoop  # 安装 Scoop 并把 shims 路径写入 GITHUB_PATH
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-          # 关键：把 scoop 的 shims 目录写入 GITHUB_PATH，让后续步骤可以直接调用 scoop
-          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Verify Scoop installation  # 验证 scoop 可调用
-        shell: pwsh
-        run: |
-          scoop --version
-          Write-Host "Scoop 已安装并可用" -ForegroundColor Green
-
-      - name: Add this bucket  # 把当前仓库作为 bucket 添加进去
-        shell: pwsh
-        run: |
-          scoop bucket add mybucket "${{ github.workspace }}"
-
-      - name: Validate each manifest JSON  # 逐个校验 bucket 目录下的 JSON manifest
+      - name: Validate each manifest
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
           $bucketDir = Join-Path $env:GITHUB_WORKSPACE 'bucket'
+          if (-not (Test-Path $bucketDir)) {
+            Write-Error "bucket 目录不存在: $bucketDir"
+            exit 1
+          }
           $manifests = Get-ChildItem -Path $bucketDir -Filter *.json
           if (-not $manifests) {
             Write-Error "在 $bucketDir 没找到任何 manifest"
@@ -51,24 +33,56 @@ jobs:
           $failed = @()
           foreach ($m in $manifests) {
             $name = $m.BaseName
-            Write-Host "校验中: $name"
-            $output = & scoop cat $name 2>&1
-            if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "校验中: $name" -ForegroundColor Cyan
+
+            try {
+              $manifest = Get-Content $m.FullName -Raw | ConvertFrom-Json
+            } catch {
+              Write-Host "  -> 失败：JSON 解析错误" -ForegroundColor Red
+              Write-Host "     $_" -ForegroundColor Red
+              $failed += $name
+              continue
+            }
+
+            $errors = @()
+            if (-not $manifest.version) { $errors += "缺少必填字段 'version'" }
+            if (-not $manifest.description) { $errors += "缺少必填字段 'description'（推荐）" }
+            if (-not $manifest.homepage) { $errors += "缺少必填字段 'homepage'" }
+            if (-not $manifest.license) { $errors += "缺少必填字段 'license'" }
+            if (-not $manifest.url) { $errors += "缺少必填字段 'url'" }
+
+            if ($manifest.autoupdate) { $errors += "包含禁用字段 'autoupdate'（违反版本锁定承诺）" }
+            if ($manifest.checkver) { $errors += "包含禁用字段 'checkver'（违反版本锁定承诺）" }
+
+            $warnings = @()
+            if ($manifest._comment) { $warnings += "包含已废弃字段 '_comment'（请用 '##' 代替）" }
+            if ($manifest.msi) { $warnings += "包含已废弃字段 'msi'（省略即可触发 zip 解压行为）" }
+            if ($manifest.cookie) { $warnings += "包含未文档化字段 'cookie'（不推荐使用）" }
+
+            if ($errors.Count -gt 0) {
               Write-Host "  -> 失败" -ForegroundColor Red
-              Write-Host $output
+              foreach ($e in $errors) { Write-Host "     - $e" -ForegroundColor Red }
               $failed += $name
             } else {
               Write-Host "  -> 通过" -ForegroundColor Green
             }
+            if ($warnings.Count -gt 0) {
+              foreach ($w in $warnings) { Write-Host "     ! $w" -ForegroundColor Yellow }
+            }
           }
+
           if ($failed.Count -gt 0) {
+            Write-Host ""
             Write-Error "以下 manifest 校验失败: $($failed -join ', ')"
             exit 1
           }
           Write-Host ""
-          Write-Host "所有 manifest 校验通过！" -ForegroundColor Green
+          Write-Host "==========================================" -ForegroundColor Green
+          Write-Host " 所有 $($manifests.Count) 个 manifest 校验通过！" -ForegroundColor Green
+          Write-Host "==========================================" -ForegroundColor Green
 
-      - name: Generate MANIFESTS.md  # 根据校验通过的 manifest 自动生成 MANIFESTS.md
+      - name: Generate MANIFESTS.md
         shell: pwsh
         run: |
           $bucketDir = Join-Path $env:GITHUB_WORKSPACE 'bucket'
@@ -93,7 +107,6 @@ jobs:
             $name = $m.BaseName
             $version = $manifest.version
             $desc = $manifest.description
-            # 转义可能破坏 Markdown 表格的字符
             if ($desc) {
               $desc = $desc -replace '\|', '\|'
               $desc = $desc -replace "`r`n", ' '
@@ -158,7 +171,7 @@ jobs:
           $content -join "`r`n" | Set-Content -Path MANIFESTS.md -Encoding utf8
           Write-Host "已生成 MANIFESTS.md（$($manifests.Count) 个 manifest）"
 
-      - name: Commit MANIFESTS.md  # 把生成的 MANIFESTS.md 提交回仓库（仅在 push 到 main/master 时）
+      - name: Commit MANIFESTS.md
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         shell: pwsh
         run: |
@@ -174,7 +187,7 @@ jobs:
             Write-Host "已提交 MANIFESTS.md" -ForegroundColor Green
           }
 
-      - name: Show MANIFESTS.md preview  # 在 PR 上不会提交，但输出预览供审查
+      - name: Show MANIFESTS.md preview
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
