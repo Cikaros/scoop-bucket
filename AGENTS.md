@@ -9,20 +9,19 @@
 
 ### 1.1 这是什么
 
-一个 Scoop bucket，收录 Windows 开发环境工具的 **版本锁定 manifest**。专门服务于以下技术栈：
+一个 Scoop bucket，收录 **版本锁定 manifest**。
 
-- VS2015（C++ 工作负载）
-- Windows 10 SDK 14393.795
-- Qt 5.6.2（MSVC2015 x64）
-- JDK 15.0.1（用 Temurin OpenJDK 替代 Oracle JDK）
-- MySQL 8.0.21
+**前期目标**：在 Windows 上编译 ONLYOFFICE 所需的开发环境快速搭建（VS2015 / Win10 SDK / Qt 5.6.2）。
+**后续扩展**：收录官方 bucket 中没有的、或官方会自动滚动版本的特定版本软件。
+
+文档**不锁定到特定技术栈** —— 后续收录的工具可能与 ONLYOFFICE 编译无关，本 bucket 会随需求演进。
 
 ### 1.2 核心原则（不可妥协）
 
 1. **版本锁定**：每个 manifest 文件名带具体版本号，`version` 字段与文件名中的版本号一致。无 `autoupdate`、无 `checkver`。
 2. **manifest 不可变**：manifest 发布后，`version` 字段绝对不能改。上游 URL 失效时只能改 `url`（且只能指向"同一版本的镜像"），不能升级版本。
 3. **中文优先**：所有 manifest 的 `notes` 字段用中文；README 是中英双语；CONTRIBUTING / SKILL / AGENTS 用中文（技术字段名保留英文）。
-4. **不重复造轮子**：官方 `main` / `extras` / `java` / `versions` bucket 已经覆盖的工具（nodejs、python、git、svn、erlang、rabbitmq 等），**不在本 bucket 收录**。本 bucket 只收录官方没有、或官方会自动滚动版本的特定版本。
+4. **不重复造轮子**：官方 `main` / `extras` / `java` / `versions` bucket 已经覆盖的工具（nodejs、python、git、svn、erlang、rabbitmq、openjdk、mysql 等），**不在本 bucket 收录**。本 bucket 只收录官方没有、或官方会自动滚动版本的特定版本。
 
 ### 1.3 必读文档（按重要性排序）
 
@@ -32,7 +31,7 @@
 | `SKILL.md` | 编写或修改 manifest 时 |
 | `CONTRIBUTING.md` | 新增 manifest 时 |
 | `README.md` | 需要理解项目对外宣传口径时 |
-| `bucket/*.json` | 作为编写新 manifest 的模板参考 |
+| `bucket/*.json` | 作为编写新 manifest 的模板参考（完整列表见 [MANIFESTS.md](MANIFESTS.md)） |
 
 ---
 
@@ -42,22 +41,22 @@
 
 ### 任务 A：添加新版本 manifest（已有工具的新版本）
 
-**触发场景**：用户说"加一个 mysql 8.0.30" 或 "qt 5.9.9 也支持一下"。
+**触发场景**：用户说"加一个 qt 5.9.9" 或 "vs2017-cpp 也支持一下"。
 
 **执行步骤**：
 
-1. 找一个最接近的现有 manifest 作为模板（比如要加 mysql-8.0.30，就复制 `bucket/mysql-8.0.21.json`）。
-2. 改文件名为新版本号：`bucket/mysql-8.0.30.json`。
+1. 找一个最接近的现有 manifest 作为模板（例如要加 `<name>-<new-version>.json`，就找一个**类型最接近**的现有 manifest 复制。现有 manifest 列表见 [MANIFESTS.md](MANIFESTS.md)）。
+2. 改文件名为新版本号：`bucket/<name>-<new-version>.json`。
 3. 修改以下字段：
    - `version` → 新版本号字符串
    - `description` → 更新版本号描述
    - `url` → 新版本下载地址（**必须先验证 URL 有效**）
-   - `extract_dir` → 如果是 zip 包，更新解压后目录名（通常带新版本号）
+   - `extract_dir` → 如果是压缩包，更新解压后目录名（通常带新版本号）
    - `notes` 里【版本锁定说明】段的版本号也要改
 4. 删除 `hash` 字段（先留空，让用户首次安装时算出再回填，或者在本地算好直接填）。
 5. JSON 语法校验：
    ```powershell
-   Get-Content bucket/mysql-8.0.30.json -Raw | ConvertFrom-Json | Out-Null
+   Get-Content bucket/qt-5.9.9-msvc2015-64.json -Raw | ConvertFrom-Json | Out-Null
    Write-Host "JSON OK"
    ```
 6. 提交并推送，CI 自动跑 `scoop cat <name>` 验证。
@@ -65,7 +64,7 @@
 **关键约束**：
 - ❌ 不要碰被复制的原 manifest 文件
 - ❌ 不要加 `autoupdate` 或 `checkver` 字段
-- ❌ 不要用通用名（如 `mysql.json`）覆盖原 manifest
+- ❌ 不要用通用名（如 `qt.json`）覆盖原 manifest
 
 ### 任务 B：修复失效的下载 URL
 
@@ -95,7 +94,7 @@
 
 ### 任务 C：算出并回填 hash
 
-**触发场景**：某个 manifest 当前没有 `hash` 字段（VS2015 / Win10 SDK / Qt 5.6.2），用户希望补全。
+**触发场景**：某个 manifest 当前没有 `hash` 字段（如 VS2015 / Win10 SDK / Qt 5.6.2），用户希望补全。
 
 **执行步骤**：
 
@@ -140,7 +139,7 @@ CI 在 `.github/workflows/validate-manifests.yml`，每次 push 自动跑 `scoop
 
 ### 任务 E：添加全新工具的 manifest
 
-**触发场景**：用户说"加一个 cmake 3.x" 或 "支持 7zip 19.00"。
+**触发场景**：用户说"加一个 cmake 3.20.5" 或 "支持 7zip 19.00"。
 
 **执行步骤**：
 
@@ -155,14 +154,14 @@ CI 在 `.github/workflows/validate-manifests.yml`，每次 push 自动跑 `scoop
 2. 如果官方没有该特定版本，确定本 bucket 应该收录。参照 `SKILL.md` 第 16 章模板选一个最接近的。
 
 3. 决定文件名：
-   - 主版本号以下都用 `-` 分隔：`cmake-3.20.5.json`、`mysql-8.0.21.json`
+   - 主版本号以下都用 `-` 分隔：例如 `cmake-3.20.5.json`、`<name>-<version>.json`
    - 简单主版本号（如 `python39`）：可以用无分隔符风格
    - **本 bucket 统一约定用 `-` 分隔风格**，便于人眼阅读
 
 4. 决定 manifest 类型（参照 SKILL.md 第 6 章）：
    - 便携式 zip → 见 16.1 模板
    - 系统级 EXE 安装器 → 见 16.2 模板
-   - 复杂自定义安装器 → 参考 `bucket/qt-5.6.2-msvc2015-64.json`
+   - 复杂自定义安装器 → 参考 `bucket/` 目录下任何带 `pre_install` heredoc 写脚本的 manifest（见 [MANIFESTS.md](MANIFESTS.md) `pre_install` 列）
 
 5. 写 manifest，包含所有 ✅ 必填字段（见 SKILL.md 第 2 章）。
 
@@ -178,11 +177,11 @@ CI 在 `.github/workflows/validate-manifests.yml`，每次 push 自动跑 `scoop
 
 ### 任务 F：升级某个 manifest 的版本
 
-**触发场景**：用户说"把 mysql 8.0.21 升到 8.0.30"。
+**触发场景**：用户说"把 qt 5.6.2 升到 5.9.9"。
 
 **正确处理**：
 - ❌ **不允许**修改原 manifest 的 `version` 字段（违反版本锁定承诺）
-- ✅ **正确做法**：按"任务 A"流程，**新建一个 manifest**（如 `bucket/mysql-8.0.30.json`），原 `bucket/mysql-8.0.21.json` 保持不变
+- ✅ **正确做法**：按"任务 A"流程，**新建一个 manifest**（如 `bucket/<name>-<new-version>.json`），原 manifest 保持不变
 
 如果用户坚持要"原地升级"（即改原 manifest 的版本），向用户解释本 bucket 的版本锁定原则，建议改用官方 `main` 或 `versions` bucket。
 
@@ -223,7 +222,7 @@ shortcuts
 architecture（如有）
 ```
 
-参照 `bucket/mysql-8.0.21.json` 的字段顺序。
+参照 `bucket/` 目录下任意 manifest 的字段顺序。
 
 ### 3.2 notes 字段结构（推荐）
 
@@ -248,7 +247,7 @@ architecture（如有）
 
 - 缩进：4 空格（参照现有 manifest）
 - 字符串：双引号
-- 路径中的反斜杠：在 JSON 中要写双反斜杠 `\\`，例如 `"bin\\mysql.exe"`
+- 路径中的反斜杠：在 JSON 中要写双反斜杠 `\\`，例如 `"bin\\qmake.exe"`
 
 ### 3.4 禁用字段清单
 
@@ -339,39 +338,28 @@ scoop search ""
 - `autoupdate` 会让 `scoop update` 自动升级到上游新版本，违背版本锁定承诺
 - `checkver` 是 autoupdate 的前置依赖，没用自然不需要
 
-**对比**：官方 `versions` bucket 的 `mysql80` 也写 `checkver` + `autoupdate`，会自动跟 8.0.x 最新补丁。本 bucket 的 `mysql-8.0.21` 锁到具体补丁，连小版本都不动。
+**对比**：官方 `versions` bucket 的 `mysql80` 也写 `checkver` + `autoupdate`，会自动跟 8.0.x 最新补丁。本 bucket 的 manifest 锁到具体补丁，连小版本都不动。
 
 ### 5.2 为什么文件名用 `-` 分隔风格
 
-**决策**：文件名形如 `mysql-8.0.21.json`，而不是 `mysql8021.json`（官方 versions bucket 风格）。
+**决策**：文件名形如 `<name>-<version>.json`，而不是 `<name><version>.json`（官方 versions bucket 风格）。
 
 **原因**：
 - 本 bucket 是版本锁定，要锁到具体补丁版本，版本号本来就长
-- `mysql-8.0.21` 比 `mysql8021` 可读性高得多
-- 用户安装命令 `scoop install cikaros/mysql-8.0.21` 也更清晰
+- `<name>-<version>` 比 `<name><version>` 可读性高得多
+- 用户安装命令 `scoop install cikaros/<name>-<version>` 也更清晰
 
-### 5.3 为什么 `oracle-jdk15` 改名为 `openjdk15`
+### 5.3 为什么某些 manifest 省略 `hash` 字段
 
-**决策**：第一版 manifest 叫 `oracle-jdk15.json`，第二版改为 `openjdk15.json`。
-
-**原因**：
-- 实际安装的是 Temurin (Adoptium OpenJDK 构建) 15.0.1+9，**不是** Oracle JDK 15.0.1
-- Oracle JDK 需要登录账号下载，没法在 manifest 里放公开 URL
-- 命名为 `oracle-jdk15` 但装的是 OpenJDK，会误导用户
-- 改名为 `openjdk15` 更诚实，与官方 `java` bucket 的 `openjdk15` 命名也一致
-- notes 里清楚说明：如果非要 Oracle JDK，自己下载镜像到 Release
-
-### 5.4 为什么 VS2015 / Win10 SDK / Qt 的 manifest 省略 `hash`
-
-**决策**：这三个 manifest 故意不写 `hash` 字段，notes 里告诉用户用 `--skip` 安装。
+**决策**：针对上游 URL 不稳定的 manifest（具体哪些见 [MANIFESTS.md](MANIFESTS.md)），故意省略 `hash` 字段，notes 里告诉用户用 `--skip` 安装。
 
 **原因**：
 - 微软和 Qt 的归档 URL 历史上有过迁移，hash 字段填了反而会过期
 - 如果上游静默换了包内容（虽然不常见），hash 校验会失败
 - 留空 + `--skip` 让用户自己决定是否信任下载源
-- MySQL / OpenJDK 的下载源稳定（MySQL 官网归档 + Adoptium GitHub Release），所以这俩填了 hash
+- 后续添加的 manifest 如果下载源稳定（如官方 CDN、Adoptium GitHub Release），**强烈建议填 hash**
 
-### 5.5 为什么用 GitHub Release 镜像失效 URL
+### 5.4 为什么用 GitHub Release 镜像失效 URL
 
 **决策**：当上游 URL 失效时，统一改指向 `github.com/Cikaros/scoop-bucket/releases` 上的镜像。
 
@@ -381,7 +369,7 @@ scoop search ""
 - 跨地域访问性能比上游官网通常更好
 - 便于审计（每个镜像对应一个 Release，可以加 SHA256 校验说明）
 
-### 5.6 为什么 README 是中英双语，其他文档纯中文
+### 5.5 为什么 README 是中英双语，其他文档纯中文
 
 **决策**：README 双语，CONTRIBUTING / SKILL / AGENTS 纯中文。
 
@@ -390,7 +378,7 @@ scoop search ""
 - CONTRIBUTING / SKILL / AGENTS 是给维护者看的，本 bucket 维护者是中文用户为主
 - 国际用户如果要贡献，让他们读 README 英文段了解项目后，再用翻译工具读 CONTRIBUTING 即可
 
-### 5.7 为什么 CI 用 `scoop cat` 而不是 schema 校验
+### 5.6 为什么 CI 用 `scoop cat` 而不是 schema 校验
 
 **决策**：CI 跑 `scoop cat <name>` 验证 manifest。
 
@@ -398,6 +386,26 @@ scoop search ""
 - `scoop cat` 是 scoop 内置的 manifest 解析器，最贴近实际行为
 - 如果用第三方 JSON schema 校验，可能漏掉 scoop 特有的字段约束
 - scoop 自身字段校验逻辑可能随版本演进，用 `scoop cat` 自动跟随
+
+### 5.7 为什么不收录 JDK 和 MySQL（即使本 bucket 前期目标需要）
+
+**决策**：JDK 和 MySQL 不在本 bucket 收录，使用官方 `java` 和 `main` bucket 即可。
+
+**原因**：
+- 官方 `java` bucket 已经覆盖各种 OpenJDK 发行版（Temurin / OpenJ9 / Microsoft 等），且按 LTS 版本（`openjdk17`、`openjdk21` 等）分别提供 manifest
+- 官方 `main` bucket 的 `mysql` 追踪最新 8.x；`versions` bucket 提供 `mysql56` / `mysql57` / `mysql80` 等多个旧版本
+- 本 bucket 的核心定位是"收录官方没有的特定版本"，JDK 和 MySQL 已经被官方充分覆盖，重复收录违背原则（见 1.2 第 4 条）
+- 如果未来确实需要锁到某个**官方也不收录的具体补丁版本**（如 MySQL 8.0.21 锁定，而官方 versions 只跟到 8.0.x latest），再考虑新增
+
+### 5.8 为什么文档不锁定到特定技术栈
+
+**决策**：README、AGENTS、CONTRIBUTING、SKILL 等文档**不**写明本 bucket 专门服务于"VS2015 + Win10 SDK + Qt 5.6.2 + JDK + MySQL"等具体技术栈。
+
+**原因**：
+- 项目前期目标是为在 Windows 上编译 ONLYOFFICE 准备环境快速搭建
+- 后续可能扩展到收录官方 bucket 没有覆盖的其他工具（不限于 C++ 工具链）
+- 锁定技术栈会让文档随需求变化频繁修订，且会让"本 bucket 收录原则"显得狭隘
+- 当前 3 个 manifest（VS2015 / Win10 SDK / Qt 5.6.2）只是"目前的"收录，不是"永久的"承诺
 
 ---
 
@@ -407,17 +415,13 @@ scoop search ""
 scoop-bucket/
 ├── .github/
 │   └── workflows/
-│       └── validate-manifests.yml    # CI：push 时校验所有 manifest
-├── bucket/                           # 所有 manifest
-│   ├── mysql-8.0.21.json
-│   ├── openjdk15.json
-│   ├── qt-5.6.2-msvc2015-64.json
-│   ├── vs2015-cpp.json
-│   └── windows10sdk-14393.json
+│       └── validate-manifests.yml    # CI：校验所有 manifest + 自动生成 MANIFESTS.md
+├── bucket/                           # 版本锁定 manifest（完整列表见 MANIFESTS.md，请勿在此枚举）
 ├── scripts/
 │   └── install-all.ps1                # 一键按依赖顺序安装全部工具
 ├── AGENTS.md                          # 本文件 — Agent 维护指南
 ├── CONTRIBUTING.md                    # 贡献指南（中文）
+├── MANIFESTS.md                       # CI 自动生成的 manifest 列表（请勿手动编辑）
 ├── SKILL.md                           # manifest 构建详细参考（中文）
 ├── README.md                         # 中英双语项目说明
 └── LICENSE                           # MIT
@@ -439,6 +443,7 @@ scoop-bucket/
 - [ ] 如果 manifest 文件名带版本号，`version` 字段是否与文件名一致？
 - [ ] 提交信息是否清晰描述改动？
 - [ ] 如果改了 `url`，是否同时考虑了 `hash` 是否需要重算？
+- [ ] 是否避免重复收录官方 bucket 已经有的工具？
 
 ---
 
@@ -448,6 +453,6 @@ scoop-bucket/
 - 官方 Scoop 主仓库：https://github.com/ScoopInstaller/Scoop
 - 官方 Scoop Wiki：https://github.com/ScoopInstaller/Scoop/wiki
 
-如果本 bucket 上的某个 manifest 与官方 bucket 重叠（例如官方 `versions` bucket 添加了 `mysql-8.0.21`），考虑：
+如果本 bucket 上的某个 manifest 与官方 bucket 重叠（例如官方 `versions` bucket 添加了某个本 bucket 已有的特定版本），考虑：
 1. 在本 manifest 的 `notes` 里加一行提示用户优先用官方版本
 2. 如果用户同意，可以删除本 bucket 的对应 manifest（保留 git 历史可追溯）

@@ -1,5 +1,7 @@
 # install-all.ps1
-# 一键安装完整 Windows 开发环境（通过 Scoop）。
+# 一键安装开发环境（通过 Scoop）。
+# 前期目标：在 Windows 上编译 ONLYOFFICE 所需的工具链。
+# 后续可根据需要扩展到其他工具。
 #
 # 用法：
 #   1) 右键 PowerShell -> 以管理员身份运行
@@ -8,7 +10,14 @@
 # 或跳过需要管理员的 VS2015 + Win10 SDK 步骤：
 #   powershell -ExecutionPolicy Bypass -File install-all.ps1 -SkipSystemLevel
 #
-# 预计耗时：45-90 分钟（主要取决于 VS2015 + Qt 的下载速度）。
+# 预计耗时：30-60 分钟（主要取决于 VS2015 + Qt 的下载速度）。
+#
+# 说明：
+#   - 本脚本只安装本 bucket 维护的版本锁定工具（VS2015 / Win10 SDK / Qt 5.6.2）
+#     以及官方 bucket 已覆盖的常用基础工具（Node.js / Python / Git / SVN / Erlang / RabbitMQ）。
+#   - JDK 与 MySQL 不在本脚本覆盖范围 —— 官方 bucket 已有，请按需自行安装：
+#       scoop install openjdk      # JDK 最新 LTS
+#       scoop install mysql         # MySQL 最新 8.x
 
 #Requires -Version 5.1
 
@@ -30,12 +39,13 @@ function Write-Skip([string]$msg) {
     Write-Host "      跳过  $msg" -ForegroundColor DarkGray
 }
 
-$total = 9
+$total = 7
 $step = 0
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host " 开发环境一键安装（通过 Scoop）" -ForegroundColor Cyan
+Write-Host " 前期目标：ONLYOFFICE Windows 编译工具链" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -71,26 +81,14 @@ scoop install git    | Out-Null
 scoop install svn     | Out-Null
 Write-OK "Node.js、Python、Git、SVN 安装完成。"
 
-# 4. JDK 15 (pinned via this bucket)
-$step++
-Write-Step $step $total "正在安装 JDK 15（Temurin 15.0.1+9）..."
-scoop install cikaros/openjdk15 | Out-Null
-Write-OK "JDK 15 安装完成。JAVA_HOME 已设置。"
-
-# 5. MySQL 8.0.21 (pinned)
-$step++
-Write-Step $step $total "正在安装 MySQL 8.0.21（版本锁定）..."
-scoop install cikaros/mysql-8.0.21 | Out-Null
-Write-OK "MySQL 8.0.21 安装完成。请运行 'mysqld --initialize-insecure --console' 完成初始化。"
-
-# 6. Erlang + RabbitMQ (order matters)
+# 4. Erlang + RabbitMQ (order matters)
 $step++
 Write-Step $step $total "正在安装 Erlang，然后安装 RabbitMQ..."
 scoop install erlang  | Out-Null
 scoop install rabbitmq | Out-Null
 Write-OK "Erlang + RabbitMQ 安装完成。"
 
-# 7. VS2015 + C++ (admin required, slow)
+# 5. VS2015 + C++ (admin required, slow)
 $step++
 if ($SkipSystemLevel) {
     Write-Step $step $total "跳过 VS2015（指定了 -SkipSystemLevel 参数）。"
@@ -106,7 +104,7 @@ if ($SkipSystemLevel) {
     }
 }
 
-# 8. Windows 10 SDK 14393
+# 6. Windows 10 SDK 14393
 $step++
 if ($SkipSystemLevel) {
     Write-Step $step $total "跳过 Win10 SDK（指定了 -SkipSystemLevel 参数）。"
@@ -122,7 +120,7 @@ if ($SkipSystemLevel) {
     }
 }
 
-# 9. Qt 5.6.2 (must come AFTER VS2015 so it detects MSVC2015)
+# 7. Qt 5.6.2 (must come AFTER VS2015 so it detects MSVC2015)
 $step++
 if ($SkipSystemLevel) {
     Write-Step $step $total "跳过 Qt 5.6.2（依赖 VS2015 先安装）。"
@@ -138,11 +136,12 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host " 所有步骤已完成。" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
+Write-Host "未覆盖的工具（按需自行安装）：" -ForegroundColor Cyan
+Write-Host "  * JDK:    scoop install openjdk        # 官方 java bucket"
+Write-Host "  * MySQL:  scoop install mysql           # 官方 main bucket"
+Write-Host ""
 Write-Host "下一步操作：" -ForegroundColor Cyan
 Write-Host "  * 打开新的 PowerShell 窗口，让 PATH 更新生效。"
-Write-Host "  * 初始化 MySQL（一次性）："
-Write-Host "      mysqld --initialize-insecure --console"
-Write-Host "      net start MySQL   （可选，如果作为服务安装）"
 Write-Host "  * 使用 'Developer Command Prompt for VS2015' 快捷方式加载构建环境。"
 Write-Host "  * 启动 Qt Creator，应自动检测到 MSVC2015 64-bit Kit。"
 Write-Host ""

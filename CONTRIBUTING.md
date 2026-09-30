@@ -4,9 +4,9 @@
 
 ## 核心原则
 
-1. **一个版本一个文件**：文件名直接包含具体版本号，如 `mysql-8.0.21.json`。
+1. **一个版本一个文件**：文件名直接包含具体版本号，如 `<name>-<version>.json`。本 bucket 当前收录的 manifest 列表见 [MANIFESTS.md](MANIFESTS.md)（由 CI 自动维护）。
 2. **无 `autoupdate`、无 `checkver`**：版本锁定，不滚动。
-3. **manifest 文件不可变**：发布后不能修改 `version` 字段或 `url` 字段。如果上游下载链接失效，要么改 `url` 指向你自己的 Release 镜像（保持 `version` 不变），要么新建一个 manifest（如 `mysql-8.0.21-mirror.json`）。
+3. **manifest 文件不可变**：发布后不能修改 `version` 字段或 `url` 字段。如果上游下载链接失效，要么改 `url` 指向你自己的 Release 镜像（保持 `version` 不变），要么新建一个 manifest（如 `<name>-<version>-mirror.json`）。
 4. **`notes` 字段使用中文**：本 bucket 面向中文用户，所有 manifest 的 notes 字段统一用中文。
 5. **URL 失效优先镜像到自己 Release**：不要依赖上游长期稳定。
 
@@ -14,13 +14,13 @@
 
 ### 1. 找一个最接近的 manifest 作为模板
 
-例如要新增 `mysql-8.0.30`，就以 `bucket/mysql-8.0.21.json` 为模板。
+例如要新增 `<name>-<new-version>`，找一个**类型最接近**的现有 manifest 作为模板。当前可用的 manifest 列表见 [MANIFESTS.md](MANIFESTS.md)。
 
 ### 2. 复制并重命名
 
 ```powershell
-# 在仓库根目录
-Copy-Item bucket/mysql-8.0.21.json bucket/mysql-8.0.30.json
+# 在仓库根目录，例如从 <existing-manifest>.json 复制出 <new-manifest>.json
+Copy-Item bucket/<existing-manifest>.json bucket/<new-manifest>.json
 ```
 
 ### 3. 修改关键字段
@@ -47,7 +47,7 @@ Copy-Item bucket/mysql-8.0.21.json bucket/mysql-8.0.30.json
 
 ```powershell
 # 简单语法检查
-Get-Content bucket/mysql-8.0.30.json -Raw | ConvertFrom-Json | Out-Null
+Get-Content bucket/<new-manifest>.json -Raw | ConvertFrom-Json | Out-Null
 Write-Host "JSON OK"
 ```
 
@@ -56,8 +56,8 @@ Write-Host "JSON OK"
 ### 6. 提交并推送
 
 ```powershell
-git add bucket/mysql-8.0.30.json
-git commit -m "新增 mysql-8.0.30 manifest"
+git add bucket/<new-manifest>.json
+git commit -m "新增 <new-manifest> manifest"
 git push
 ```
 
@@ -91,16 +91,16 @@ CI 会在 GitHub Actions 里跑 `scoop cat <name>` 验证 manifest 是否能被 
 参照官方 `Versions` 仓库的命名习惯：
 
 - **简单版本号**：`python39`、`mysql57`、`nodejs18`（无分隔符）
-- **复杂版本号或带架构**：`mysql-8.0.21`、`qt-5.6.2-msvc2015-64`、`windows10sdk-14393`（带 `-` 分隔符）
-- **本 bucket 的统一约定**：主版本号以下的所有版本号都用 `-` 连接（如 `mysql-8.0.21` 而不是 `mysql8021`），便于人眼阅读
+- **复杂版本号或带架构**：如 `<name>-<major>.<minor>.<patch>-<arch>.json`、`<name>-<build>.json`（带 `-` 分隔符）
+- **本 bucket 的统一约定**：主版本号以下的所有版本号都用 `-` 连接（如 `<name>-<version>.json`），便于人眼阅读
 
-新增 manifest 时，如果版本号只到主版本（如 `python39`），用无分隔符风格；如果带小版本号（如 `mysql-8.0.21`），用 `-` 分隔风格。
+新增 manifest 时，如果版本号只到主版本（如 `python39`），用无分隔符风格；如果带小版本号（如 `<name>-<version>.json`），用 `-` 分隔风格。
 
 ## 关于 hash 字段
 
-本 bucket 故意让某些 manifest 省略 `hash` 字段（针对上游 URL 不稳定的工具，如 VS2015 / Win10 SDK / Qt）。这是**有意为之**，不是疏漏。
+本 bucket 故意让某些 manifest 省略 `hash` 字段（针对上游 URL 不稳定的工具，具体哪些见 [MANIFESTS.md](MANIFESTS.md) 字段速查表的 `hash` 列）。这是**有意为之**，不是疏漏。
 
-但如果你新增的 manifest 对应的下载源稳定（如 Adoptium 的 GitHub Release 资产），建议**填写 hash**：
+但如果你新增的 manifest 对应的下载源稳定（如官方 CDN、GitHub Release 资产等），建议**填写 hash**：
 
 ```powershell
 # 算出 SHA256
@@ -145,7 +145,7 @@ CI 失败的常见原因：
 4. 在 manifest 的 `notes` 里加一条说明，标注原始上游 URL 已失效，当前用的是镜像
 5. 提交推送
 
-如果新版本号也需要支持，**新建一个 manifest**（如 `mysql-8.0.21-mirror.json`），不要动原来的。
+如果新版本号也需要支持，**新建一个 manifest**（如 `<name>-<version>-mirror.json`），不要动原来的。
 
 ## 任何疑问
 

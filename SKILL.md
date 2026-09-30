@@ -20,7 +20,7 @@
 
 Scoop 的 manifest 是一个 JSON 文件，描述如何安装一个程序：从哪里下载、如何解压或安装、哪些可执行文件需要加进 PATH、需要持久化哪些数据、安装前后要跑什么脚本等等。
 
-manifest 的**文件名（去掉 `.json` 后缀）**就是包名，例如 `mysql-8.0.21.json` 对应 `scoop install cikaros/mysql-8.0.21`。
+manifest 的**文件名（去掉 `.json` 后缀）**就是包名，例如 `<name>-<version>.json` 对应 `scoop install cikaros/<name>-<version>`。
 
 ### 1.2 最小可用的 manifest
 
@@ -39,7 +39,7 @@ manifest 的**文件名（去掉 `.json` 后缀）**就是包名，例如 `mysql
 
 本 bucket 严格遵循**版本锁定模式**（参照官方 `Versions` bucket），所有 manifest 必须满足：
 
-1. **文件名带具体版本号**（如 `mysql-8.0.21.json`），不允许通用名（如 `mysql.json`）
+1. **文件名带具体版本号**（如 `<name>-<version>.json`），不允许通用名（如 `<name>.json`）
 2. **不使用 `autoupdate` 字段** — 否则 `scoop update` 会自动升级版本
 3. **不使用 `checkver` 字段** — 不需要主动检测上游新版本
 4. **`notes` 字段统一用中文**
@@ -91,18 +91,18 @@ manifest 的**文件名（去掉 `.json` 后缀）**就是包名，例如 `mysql
 ### 3.1 `version` — 版本号字符串
 
 ```json
-"version": "8.0.21"
+"version": "5.6.2"
 ```
 
-本 bucket 要求 `version` 字段与文件名中的版本号一致，例如 `mysql-8.0.21.json` 对应 `"version": "8.0.21"`。
+本 bucket 要求 `version` 字段与文件名中的版本号一致，例如 `<name>-<version>.json` 对应 `"version": "<version>"`。
 
 ### 3.2 `description` — 一行简短描述
 
 ```json
-"description": "MySQL Community Server 8.0.21（锁定版本，不滚动最新）。"
+"description": "<工具名> <版本> 框架二进制，<架构> 编译。前置依赖：<依赖说明>。"
 ```
 
-**注意**：不要在 description 里重复包名本身（官方建议）。比如 `mysql-8.0.21` 的 description 不需要再写 "MySQL 8.0.21 是 ..."，直接说功能即可。
+**注意**：不要在 description 里重复包名本身（官方建议）。比如包名是 `<name>-<version>`，description 不需要再写 "<Name> <Version> 是 ..."，直接说功能即可。
 
 ### 3.3 `homepage` — 程序官网
 
@@ -140,7 +140,7 @@ manifest 的**文件名（去掉 `.json` 后缀）**就是包名，例如 `mysql
 ### 3.5 `url` — 下载地址
 
 ```json
-"url": "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.21-winx64.zip"
+"url": "https://download.qt.io/archive/qt/5.6/5.6.2/qt-opensource-windows-x86-msvc2015_64-5.6.2.exe"
 ```
 
 支持 HTTP / HTTPS / FTP。多个文件用数组：
@@ -474,11 +474,13 @@ Qt 的安装器不接受标准静默参数，必须用 QtIF 自己的脚本机�
 ### 8.2 卸载行为
 
 - 默认：`scoop uninstall` 会保留持久化数据，方便重装
-- 加 `-p` 参数：`scoop uninstall -p mysql-8.0.21` 会**清空**持久化数据
+- 加 `-p` 参数：`scoop uninstall -p <package-name>` 会**清空**持久化数据
 
 ### 8.3 本 bucket 使用 `persist` 的 manifest
 
-`mysql-8.0.21.json` 持久化 `data` / `my.ini` / `log` 三项，确保 `scoop update mysql-8.0.21` 不丢数据库。
+当前本 bucket 中所有 manifest 都是系统级安装器或 QtIF 安装器，**未使用 `persist` 字段**（具体字段使用情况见 [MANIFESTS.md](MANIFESTS.md) 字段速查表的 `persist` 列）。
+
+后续如果新增便携式归档类的 manifest（如某个工具的 portable zip 包），且工具自身有配置文件或数据目录，应使用 `persist` 字段持久化，确保 `scoop update <name>` 不丢用户数据。
 
 ---
 
@@ -538,7 +540,7 @@ Get-FileHash <下载的文件> -Algorithm SHA256
 某些上游 URL 不可控时，可以省略 `hash` 字段，用户安装时加 `--skip`：
 
 ```powershell
-scoop install cikaros/vs2015-cpp --skip
+scoop install cikaros/<package-name> --skip
 ```
 
 ### 11.3 多 URL 的 hash
@@ -573,14 +575,14 @@ scoop install <name> --no-cache-dir
 ### 12.3 单文件 JSON 语法校验
 
 ```powershell
-Get-Content bucket/mysql-8.0.21.json -Raw | ConvertFrom-Json | Out-Null
+Get-Content bucket/<name>.json -Raw | ConvertFrom-Json | Out-Null
 Write-Host "JSON OK"
 ```
 
 或者用 Python：
 
 ```bash
-python3 -c "import json; json.load(open('bucket/mysql-8.0.21.json'))"
+python3 -c "import json; json.load(open('bucket/<name>.json'))"
 ```
 
 ### 12.4 查看 manifest 字段
@@ -663,13 +665,21 @@ VS2015 这类系统级安装器，`$dir` 仍然是 Scoop 管理的临时目录�
 
 ## 14. 本 bucket 中的 manifest 实例参考
 
-| Manifest | 类型 | 看点 |
-|----------|------|------|
-| `bucket/mysql-8.0.21.json` | 便携式归档 | `persist` 字段持久化数据库目录；多 `bin` shim |
-| `bucket/openjdk15.json` | 便携式归档 | `extract_dir` 配合 GitHub Release；`env_set JAVA_HOME` |
-| `bucket/vs2015-cpp.json` | 系统级 EXE 安装器 | `installer.args` + `/quiet` 静默参数 + 系统 PATH 配置 |
-| `bucket/windows10sdk-14393.json` | 系统级 EXE 安装器 | 与 VS2015 类似的模式，针对独立 SDK 安装器 |
-| `bucket/qt-5.6.2-msvc2015-64.json` | QtIF 自定义安装器 | `pre_install` 写 `.qs` 脚本，`installer.args` 用 `--script` 调用 |
+本 bucket 当前实际收录的 manifest 列表由 CI 自动维护在 [MANIFESTS.md](MANIFESTS.md) 中。
+
+如需查看某个具体 manifest 的实现，直接读 `bucket/` 目录下对应的 JSON 文件即可。本 bucket 不在文档中枚举具体 manifest 名单 —— 列表会随仓库演进变化，硬编码在文档里会过时。
+
+按 manifest 类型，可参照的实现位置：
+
+| Manifest 类型 | 参考来源 |
+|---------------|---------|
+| 便携式归档（zip / 7z） + `extract_dir` + `bin` + `env_set` + `persist` | 官方 [`Versions`](https://github.com/ScoopInstaller/Versions) bucket 的 `mysql80.json`；官方 [`Java`](https://github.com/ScoopInstaller/Java) bucket 的 `temurin17-jdk.json` |
+| 系统级 EXE 安装器（带 `installer.args` 静默参数 + `post_install` 清理） | 本 bucket `bucket/` 目录下任何带 `installer.args` 的 manifest（CI 验证通过的都可作为模板） |
+| QtIF 自定义安装器（`pre_install` 写 `.qs` 脚本 + `installer.args` 用 `--script` 调用） | 本 bucket `bucket/` 目录下任何带 `pre_install` heredoc 写脚本的 manifest；或 Qt 官方 [Installer Framework 文档](https://doc.qt.io/qtinstallerframework/index.html) |
+| Inno Setup 安装器（`innosetup: true`） | 官方 [`Extras`](https://github.com/ScoopInstaller/Extras) bucket 的任意 `innosetup: true` manifest |
+| MSI 安装器（现代用法：省略 `msi` 字段，当 zip 解压） | 官方 [`Main`](https://github.com/ScoopInstaller/Main) bucket 的任意带 `.msi` URL 的 manifest |
+
+> **设计原则**：本 bucket 的所有文档（README / AGENTS / SKILL / CONTRIBUTING）**不枚举**当前收录的 manifest 名单，统一指向由 CI 自动生成的 [MANIFESTS.md](MANIFESTS.md)。这样文档不会随 manifest 增删而过时。
 
 ---
 
@@ -745,9 +755,9 @@ VS2015 这类系统级安装器，`$dir` 仍然是 Scoop 管理的临时目录�
 }
 ```
 
-### 16.3 复杂自定义安装器模板（参考 Qt 5.6.2 的完整实现）
+### 16.3 复杂自定义安装器模板（如 Qt Installer Framework 类）
 
-参见 `bucket/qt-5.6.2-msvc2015-64.json`。核心模式：`pre_install` 生成脚本文件，`installer.args` 传 `--script` 参数，`post_install` 清理临时文件。
+参见 `bucket/` 目录下任何带 `pre_install` heredoc 写脚本的 manifest（见 [MANIFESTS.md](MANIFESTS.md)）。核心模式：`pre_install` 生成脚本文件，`installer.args` 传 `--script` 参数，`post_install` 清理临时文件。
 
 ---
 
